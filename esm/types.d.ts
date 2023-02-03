@@ -104,7 +104,7 @@ export type GeoJson = {
 };
 export type GpxJson = {
     metadata: Metadata;
-    wpt: Waypoint[];
+    wpt?: Waypoint[];
     trk: Track[];
-    rte: Route[];
+    rte?: Route[];
 };

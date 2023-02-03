@@ -45,11 +45,13 @@ class GpxParser {
             let result = await parser.parseStringPromise(gpxstring);
             jsonReturn.metadata = result.gpx.metadata;
             jsonReturn.wpt = result.gpx.wpt;
-            if (Array.isArray(result.gpx.rte)) {
-                jsonReturn.rte = result.gpx.rte;
-            }
-            else {
-                jsonReturn.rte = [result.gpx.rte];
+            if (result.gpx.rte) {
+                if (Array.isArray(result.gpx.rte)) {
+                    jsonReturn.rte = result.gpx.rte;
+                }
+                else {
+                    jsonReturn.rte = [result.gpx.rte];
+                }
             }
             if (Array.isArray(result.gpx.trk)) {
                 jsonReturn.trk = result.gpx.trk;
@@ -135,6 +137,7 @@ class GpxParser {
      * @returns {} a GeoJSON formatted Object
      */
     toGeoJSON(gpxJson) {
+        var _a, _b;
         let geoJson = {
             type: "FeatureCollection",
             features: [],
@@ -174,7 +177,7 @@ class GpxParser {
             });
             geoJson.features.push(feature);
         });
-        gpxJson.rte.forEach((track) => {
+        (_a = gpxJson.rte) === null || _a === void 0 ? void 0 : _a.forEach((route, index) => {
             let feature = {
                 type: "Feature",
                 geometry: {
@@ -182,16 +185,16 @@ class GpxParser {
                     coordinates: [],
                 },
                 properties: {
-                    name: track.name,
-                    cmt: track.cmt,
-                    desc: track.desc,
-                    src: track.src,
-                    number: track.number,
-                    link: track.link,
-                    type: track.type,
+                    name: route.name,
+                    cmt: route.cmt,
+                    desc: route.desc,
+                    src: route.src,
+                    number: route.number,
+                    link: route.link,
+                    type: route.type,
                 },
             };
-            track.rtept.forEach((pt) => {
+            route.rtept.forEach((pt) => {
                 let geoPt = {
                     lon: pt.lon,
                     lat: pt.lat,
@@ -202,7 +205,7 @@ class GpxParser {
             });
             geoJson.features.push(feature);
         });
-        gpxJson.wpt.forEach((pt) => {
+        (_b = gpxJson.wpt) === null || _b === void 0 ? void 0 : _b.forEach((pt) => {
             let feature = {
                 type: "Feature",
                 geometry: {
