@@ -4,6 +4,7 @@ import "./types";
 import { Elevation, GeoJson, GeoJsonFeature, GpxJson, Point } from "./types";
 
 export default class GpxParser {
+  constructor(){}
 
   async parse(gpxstring: string): Promise<GpxJson> {
     const parserOptions = {
