@@ -2,8 +2,7 @@
   "name": "gpx-parser-ts",
   "version": "1.0.0",
   "description": "GPX Parser written in Typescript",
-  "main": "dist/main.js",
-  "module": "esm/main.js",
+  "main": "./dist/main",
   "files": [
     "dist",
     "src",
