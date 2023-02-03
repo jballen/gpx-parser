@@ -2,16 +2,19 @@
   "name": "gpx-parser-ts",
   "version": "1.0.0",
   "description": "GPX Parser written in Typescript",
-  "main": "src/main.ts",
+  "main": "dist/main.js",
+  "module": "esm/main.js",
   "files": [
     "dist",
-    "src"
+    "src",
+    "esm"
   ],
   "scripts": {
-    "build": "tsc",
-    "clean": "rimraf dist",
+    "clean": "rimraf dist esm",
     "prebuild": "npm run clean",
-    "preversion": "npm run build",
+    "build:cjs": "tsc --module commonjs --outDir dist",
+    "build:esm": "tsc --target es2018 --outDir esm",
+    "build": "npm run build:esm && npm run build:cjs",
     "test": "jest"
   },
   "keywords": [
