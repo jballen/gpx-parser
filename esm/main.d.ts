@@ -36,4 +36,3 @@ export default class GpxParser {
      */
     toGeoJSON(gpxJson: GpxJson): GeoJson;
 }
-//# sourceMappingURL=main.d.ts.map

@@ -108,4 +108,3 @@ export type GpxJson = {
     trk: Track[];
     rte: Route[];
 };
-//# sourceMappingURL=types.d.ts.map
