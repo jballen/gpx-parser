@@ -23,6 +23,10 @@
   ],
   "author": "Brock Allen",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jballen/gpx-parser.git"
+  },
   "devDependencies": {
     "@types/jest": "^29.4.0",
     "@types/node": "^18.11.18",
