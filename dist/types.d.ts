@@ -111,11 +111,14 @@ export type GpxJson = {
 };
 export type StreamJson = {
     distance: number[];
-    elevation: number[];
+    distanceBelowThreshold: number[];
+    altitude: number[];
     extension: any;
     gradeAdjustedDistance: number[];
-    time: number[];
+    elapsedTime: number[];
+    movingTime: number[];
 };
 export type StreamJSONInputOptions = {
     extensionProcessor?: ((extension: any) => any);
+    speedThreshold?: number;
 };

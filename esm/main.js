@@ -88,20 +88,23 @@ class GpxParser {
      * @returns {number} The distance between the two points, returned in kilometers
      */
     calculateDistanceBetweenPoints(wpt1, wpt2) {
-        let lat1 = wpt1.lat, lat2 = wpt2.lat, long1 = wpt1.lon, long2 = wpt2.lon;
-        return (Math.acos(Math.cos(this.toRadian(90 - lat1)) *
-            Math.cos(this.toRadian(90 - lat2)) +
-            Math.sin(this.toRadian(90 - lat1)) *
-                Math.sin(this.toRadian(90 - lat2)) *
-                Math.cos(this.toRadian(long1 - long2))) * 6371);
+        const earthRadiusKm = 6371;
+        const dLat = this.toRadian(wpt2.lat - wpt1.lat);
+        const dLon = this.toRadian(wpt2.lon - wpt1.lon);
+        const lat1 = this.toRadian(wpt1.lat);
+        const lat2 = this.toRadian(wpt2.lat);
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
     }
     calculateGradeAdjustedDistanceBetweenPoints(wpt1, wpt2) {
-        let latLongDist = this.calculateDistanceBetweenPoints(wpt1, wpt2);
-        let eleDist = Math.sqrt(Math.pow(wpt1.ele, 2) + Math.pow(wpt2.ele, 2)) * 1000;
-        return latLongDist + eleDist;
+        const latLongDist = this.calculateDistanceBetweenPoints(wpt1, wpt2);
+        const eleDiff = (wpt2.ele - wpt1.ele) / 1000;
+        return Math.sqrt(Math.pow(eleDiff, 2) + Math.pow(latLongDist, 2));
     }
     toRadian(degree) {
-        return degree * (Math.PI / 180);
+        return degree * Math.PI / 180;
     }
     /**
      * Generate Elevation Object from an array of points
@@ -144,30 +147,47 @@ class GpxParser {
      * @returns {StreamJson} An object of arrays where for array A and array B, A[i] is the same timestamp as B[i]
      */
     toStreamJSON(points, options) {
-        let distance = [];
-        let elevation = [];
-        let gradeAdjustedDistance = [];
-        let time = [];
+        let distance = [0];
+        let distanceBelowThreshold = [0];
+        let altitude = [points[0].ele];
+        let gradeAdjustedDistance = [0];
+        let elapsedTime = [0];
+        let movingTime = [0];
         let extension = [];
-        for (let i = 0; i < points.length; i++) {
+        for (let i = 1; i < points.length; i++) {
             let point = points[i];
-            if (i < points.length - 1) {
-                let nextPoint = points[i + 1];
-                distance[i] = this.calculateDistanceBetweenPoints(point, nextPoint);
-                gradeAdjustedDistance[i] = this.calculateGradeAdjustedDistanceBetweenPoints(point, nextPoint);
+            let prevPoint = points[i - 1];
+            const dist = this.calculateDistanceBetweenPoints(prevPoint, point);
+            distance[i] = dist;
+            gradeAdjustedDistance[i] = this.calculateGradeAdjustedDistanceBetweenPoints(prevPoint, point);
+            altitude[i] = point.ele;
+            const date1 = new Date(prevPoint.time), date2 = new Date(point.time);
+            elapsedTime[i] = Math.abs(date2.getTime() - date1.getTime()) / 1000;
+            const speedThreshold = (options === null || options === void 0 ? void 0 : options.speedThreshold) ? options.speedThreshold : 5.3;
+            if (dist * 3600 > speedThreshold) {
+                movingTime[i] = 1;
+                distanceBelowThreshold[i] = dist;
             }
-            elevation[i] = point.ele;
-            time[i] = point.time.getUTCSeconds() - points[0].time.getUTCSeconds();
-            if (options && options.extensionProcessor && point.extensions) {
-                extension[i] = options.extensionProcessor(point.extensions);
+            else {
+                movingTime[i] = 0;
+                distanceBelowThreshold[i] = 0;
+            }
+            if (point.extensions) {
+                if (options && options.extensionProcessor) {
+                    extension[i] = options.extensionProcessor(point.extensions);
+                }
+                else {
+                    extension[i] = point.extensions;
+                }
             }
         }
         return {
             distance,
-            elevation,
+            altitude: altitude,
             extension,
             gradeAdjustedDistance,
-            time,
+            elapsedTime,
+            movingTime
         };
     }
     /**

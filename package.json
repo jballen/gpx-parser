@@ -1,6 +1,6 @@
 {
   "name": "gpx-parser-ts",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "GPX Parser written in Typescript",
   "main": "./dist/main",
   "files": [
