@@ -19,15 +19,22 @@ Usage
 
 ```javascript
   const parser: GpxParser = new GpxParser();
-  const gpxJson: GeoJson = await parser.parse(gpxString);
-  // Do whatever you like with the geoJson object
+  const gpxJson: GpxJson = await parser.parse(gpxString);
+  // Do whatever you like with the gpxJson object
 ```
 
-### Calculate distance:
+### Calculate distance (in kilometers):
 
 ```javascript
-  const runDistance = parser.calculateTotalDistanceForPoints(gpxJson.trk[0].trkseg.trkpt)  
+  const runDistance: number = parser.calculateTotalDistanceForPoints(gpxJson.trk[0].trkseg.trkpt)  
 ```
+
+### Calculate elevation changes (in meters):
+
+```javascript
+  const elevationData: Elevation = parser.calculateElevationData(gpxJson.trk[0].trkseg.trkpt)  
+```
+
 ### Convert to geoJson:
 
 ```javascript

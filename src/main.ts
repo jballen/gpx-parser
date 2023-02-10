@@ -1,13 +1,21 @@
 import * as xml2js from "xml2js";
 import { parseNumbers } from "xml2js/lib/processors";
 import "./types";
-import { Elevation, GeoJson, GeoJsonFeature, GpxJson, Point } from "./types";
+import {
+  Elevation,
+  GeoJson,
+  GeoJsonFeature,
+  GpxJson,
+  Point,
+  StreamJson,
+  StreamJSONInputOptions,
+} from "./types";
 
 export default class GpxParser {
-  constructor(){}
+  constructor() {}
 
   async parse(gpxstring: string): Promise<GpxJson> {
-    const parserOptions = {
+    const parserOptions: xml2js.ParserOptions = {
       tagNameProcessors: [parseNumbers],
       attrNameProcessors: [parseNumbers],
       valueProcessors: [parseNumbers],
@@ -24,13 +32,12 @@ export default class GpxParser {
       jsonReturn.metadata = result.gpx.metadata;
       jsonReturn.wpt = result.gpx.wpt;
       if (result.gpx.rte) {
-
-      if (Array.isArray(result.gpx.rte)) {
-        jsonReturn.rte = result.gpx.rte;
-      } else {
-        jsonReturn.rte = [result.gpx.rte];
+        if (Array.isArray(result.gpx.rte)) {
+          jsonReturn.rte = result.gpx.rte;
+        } else {
+          jsonReturn.rte = [result.gpx.rte];
+        }
       }
-    }
 
       if (Array.isArray(result.gpx.trk)) {
         jsonReturn.trk = result.gpx.trk;
@@ -64,40 +71,47 @@ export default class GpxParser {
   }
 
   /**
-   * Calcul Distance between two points with lat and lon
+   * Calculate Distance between two points with lat and lon
    *
    * @param  {} wpt1 - A geographic point with lat and lon properties
    * @param  {} wpt2 - A geographic point with lat and lon properties
    *
-   * @returns {float} The distance between the two points, returned in kilometers
+   * @returns {number} The distance between the two points, returned in kilometers
    */
-  calculateDistanceBetweenPoints(wpt1: Point, wpt2: Point) {
-    let lat1 = wpt1.lat,
-      lat2 = wpt2.lat,
-      long1 = wpt1.lon,
-      long2 = wpt2.lon;
+  calculateDistanceBetweenPoints(wpt1: Point, wpt2: Point): number {
+    const earthRadiusKm = 6371;
 
-    return (
-      Math.acos(
-        Math.cos(this.toRadian(90 - lat1)) *
-          Math.cos(this.toRadian(90 - lat2)) +
-          Math.sin(this.toRadian(90 - lat1)) *
-            Math.sin(this.toRadian(90 - lat2)) *
-            Math.cos(this.toRadian(long1 - long2))
-      ) * 6371
-    );
+    const dLat = this.toRadian(wpt2.lat-wpt1.lat);
+    const dLon = this.toRadian(wpt2.lon-wpt1.lon);
+
+    const lat1 = this.toRadian(wpt1.lat);
+    const lat2 = this.toRadian(wpt2.lat);
+
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return earthRadiusKm * c;
+  }
+
+  calculateGradeAdjustedDistanceBetweenPoints(
+    wpt1: Point,
+    wpt2: Point
+  ): number {
+    const latLongDist = this.calculateDistanceBetweenPoints(wpt1, wpt2);
+    const eleDiff = (wpt2.ele - wpt1.ele)/1000;
+    return Math.sqrt(Math.pow(eleDiff, 2) + Math.pow(latLongDist, 2));
   }
 
   private toRadian(degree: number): number {
-    return degree * (Math.PI / 180);
+    return degree * Math.PI / 180;
   }
 
   /**
    * Generate Elevation Object from an array of points
    *
-   * @param  {} points - An array of points with ele property
+   * @param  {Point[]} points - An array of points with ele property
    *
-   * @returns {ElevationObject} An object with negative and positive height difference and average, max and min altitude data
+   * @returns {Elevation} An object with negative and positive height difference and average, max and min altitude data
    */
   calculateElevationData(points: Point[]): Elevation {
     let posEleChange = 0,
@@ -132,6 +146,67 @@ export default class GpxParser {
     ret.avg = sum / elevations.length;
 
     return ret;
+  }
+
+  /**
+   * Generate a StreamJson object, which comprises easy-to-digest data points in separate arrays.
+   *
+   * @param  {Point[]} points - An array of points with ele property
+   *
+   * @returns {StreamJson} An object of arrays where for array A and array B, A[i] is the same timestamp as B[i]
+   */
+  toStreamJSON(points: Point[], options?: StreamJSONInputOptions): StreamJson {
+    let distance: number[] = [0];
+    let distanceBelowThreshold: number[] = [0];
+    let altitude: number[] = [points[0].ele];
+    let gradeAdjustedDistance: number[] = [0];
+    let elapsedTime: number[] = [0];
+    let movingTime: number[] = [0];
+    let extension: any = [];
+
+    for (let i = 1; i < points.length; i++) {
+      let point = points[i];
+      let prevPoint = points[i - 1];
+
+      const dist = this.calculateDistanceBetweenPoints(prevPoint, point);
+      distance[i] = dist;
+      gradeAdjustedDistance[i] = this.calculateGradeAdjustedDistanceBetweenPoints(
+        prevPoint,
+        point
+      );
+     
+      altitude[i] = point.ele;
+     
+      const date1 = new Date(prevPoint.time),
+        date2 = new Date(point.time);
+      elapsedTime[i] = Math.abs(date2.getTime() - date1.getTime())/1000;
+
+      const speedThreshold = options?.speedThreshold ? options.speedThreshold : 5.3;
+      if (dist * 3600 > speedThreshold) {
+        movingTime[i] = 1;
+        distanceBelowThreshold[i] = dist;
+      } else {
+        movingTime[i] = 0;
+        distanceBelowThreshold[i] = 0;
+      }
+     
+      if (point.extensions) {
+        if (options && options.extensionProcessor) {
+          extension[i] = options.extensionProcessor(point.extensions);
+        } else {
+          extension[i] = point.extensions;
+        }
+      }
+    }
+
+    return {
+      distance,
+      altitude: altitude,
+      extension,
+      gradeAdjustedDistance,
+      elapsedTime,
+      movingTime
+    } as StreamJson;
   }
 
   /**
@@ -183,7 +258,7 @@ export default class GpxParser {
 
       geoJson.features.push(feature);
     });
-    
+
     gpxJson.rte?.forEach((route, index) => {
       let feature: GeoJsonFeature = {
         type: "Feature",

@@ -80,12 +80,12 @@ class GpxParser {
         return totalDistance;
     }
     /**
-     * Calcul Distance between two points with lat and lon
+     * Calculate Distance between two points with lat and lon
      *
      * @param  {} wpt1 - A geographic point with lat and lon properties
      * @param  {} wpt2 - A geographic point with lat and lon properties
      *
-     * @returns {float} The distance between the two points, returned in kilometers
+     * @returns {number} The distance between the two points, returned in kilometers
      */
     calculateDistanceBetweenPoints(wpt1, wpt2) {
         let lat1 = wpt1.lat, lat2 = wpt2.lat, long1 = wpt1.lon, long2 = wpt2.lon;
@@ -95,15 +95,20 @@ class GpxParser {
                 Math.sin(this.toRadian(90 - lat2)) *
                 Math.cos(this.toRadian(long1 - long2))) * 6371);
     }
+    calculateGradeAdjustedDistanceBetweenPoints(wpt1, wpt2) {
+        let latLongDist = this.calculateDistanceBetweenPoints(wpt1, wpt2);
+        let eleDist = Math.sqrt(Math.pow(wpt1.ele, 2) + Math.pow(wpt2.ele, 2)) * 1000;
+        return latLongDist + eleDist;
+    }
     toRadian(degree) {
         return degree * (Math.PI / 180);
     }
     /**
      * Generate Elevation Object from an array of points
      *
-     * @param  {} points - An array of points with ele property
+     * @param  {Point[]} points - An array of points with ele property
      *
-     * @returns {ElevationObject} An object with negative and positive height difference and average, max and min altitude data
+     * @returns {Elevation} An object with negative and positive height difference and average, max and min altitude data
      */
     calculateElevationData(points) {
         let posEleChange = 0, negEleChange = 0, ret = {}, elevations = [], sum = 0;
@@ -130,6 +135,40 @@ class GpxParser {
         ret.neg = Math.abs(negEleChange);
         ret.avg = sum / elevations.length;
         return ret;
+    }
+    /**
+     * Generate a StreamJson object, which comprises easy-to-digest data points in separate arrays.
+     *
+     * @param  {Point[]} points - An array of points with ele property
+     *
+     * @returns {StreamJson} An object of arrays where for array A and array B, A[i] is the same timestamp as B[i]
+     */
+    toStreamJSON(points, options) {
+        let distance = [];
+        let elevation = [];
+        let gradeAdjustedDistance = [];
+        let time = [];
+        let extension = [];
+        for (let i = 0; i < points.length; i++) {
+            let point = points[i];
+            if (i < points.length - 1) {
+                let nextPoint = points[i + 1];
+                distance[i] = this.calculateDistanceBetweenPoints(point, nextPoint);
+                gradeAdjustedDistance[i] = this.calculateGradeAdjustedDistanceBetweenPoints(point, nextPoint);
+            }
+            elevation[i] = point.ele;
+            time[i] = point.time.getUTCSeconds() - points[0].time.getUTCSeconds();
+            if (options && options.extensionProcessor && point.extensions) {
+                extension[i] = options.extensionProcessor(point.extensions);
+            }
+        }
+        return {
+            distance,
+            elevation,
+            extension,
+            gradeAdjustedDistance,
+            time,
+        };
     }
     /**
      * Export the GPX object to a GeoJSON formatted Object

@@ -1,7 +1,7 @@
 import assert from "assert";
 import * as fs from "fs";
 import GpxParser from "../src/main";
-import { GpxJson, GeoJson } from '../src/types';
+import { GpxJson, GeoJson, Point } from '../src/types';
 
 describe("GPX parser", function () {
   let parser: GpxParser = new GpxParser();
@@ -127,7 +127,7 @@ describe("Calculation tests", function () {
   });
 
   it("should calculate the proper distance", function () {
-    assert.equal(parser.calculateTotalDistanceForPoints(gpxJson.trk[0].trkseg.trkpt), 11.79887610876137);
+    assert.equal(parser.calculateTotalDistanceForPoints(gpxJson.trk[0].trkseg.trkpt).toFixed(8), "11.79915963");
   });
 
   it("should sum elevation", function () {
@@ -160,4 +160,52 @@ describe('GeoJSON exporter long test file', function() {
     it('should export correct metadata', function(){
         assert.equal(geoJson.properties.time, gpxJson.metadata.time);
     });
+
+    it('should parse extensions', function() {
+      expect(gpxJson.trk[0].trkseg.trkpt[0].extensions).toBeTruthy();
+    });
+
+    it ('should successfully streamJson', function() {
+      let streamJson = parser.toStreamJSON(gpxJson.trk[0].trkseg.trkpt, {speedThreshold: 5.3});
+      expect(streamJson.distance.length).toBe(3602); 
+      expect(streamJson.altitude.length).toBe(3602);
+      expect(streamJson.gradeAdjustedDistance.length).toBe(3602); 
+      expect(streamJson.elapsedTime.length).toBe(3602);
+      expect(streamJson.extension.length).toBe(3602);
+      const totalDist = streamJson.distance.reduce((a,b) => a+b);
+      expect(totalDist.toFixed(8)).toBe("11.79915963");
+      const totalGradeDist = streamJson.gradeAdjustedDistance.reduce((a,b) => a+b);
+      expect(totalGradeDist.toFixed(8)).toBe("11.81015231");
+      const elapsedTime = streamJson.elapsedTime.reduce((a,b) => a+b);
+      expect(elapsedTime).toBe(3737);
+
+      let moveTime = 0;
+      streamJson.elapsedTime.forEach((val, i) => {
+        if (streamJson.movingTime[i] === 1) {
+          moveTime += val;
+        }
+      });
+      expect(moveTime).toBe(3615);
+    })
+});
+
+describe('Calcuating graduated distance between two points', function() {
+  let parser: GpxParser = new GpxParser();
+
+  it('should calculate graduated distance correctly', function() {
+    const p1 = {
+      ele: 1,
+      lat: 1,
+      lon: 1
+    } as Point;
+    const p2 = {
+      ele: 5,
+      lat: 1,
+      lon: 4
+    } as Point;
+    const gradeDist = parser.calculateGradeAdjustedDistanceBetweenPoints(p2, p1);
+    const dist = parser.calculateDistanceBetweenPoints(p2, p1);
+    expect(dist.toFixed(10)).toBe("333.5339617480");
+    expect(gradeDist.toFixed(10)).toBe("333.5339617720");
+  });
 });

@@ -48,6 +48,7 @@ export type Point = {
     lon: number;
     ele: number;
     time: Date;
+    extensions?: {};
 };
 export type Distance = {
     total: number;
@@ -107,4 +108,14 @@ export type GpxJson = {
     wpt?: Waypoint[];
     trk: Track[];
     rte?: Route[];
+};
+export type StreamJson = {
+    distance: number[];
+    elevation: number[];
+    extension: any;
+    gradeAdjustedDistance: number[];
+    time: number[];
+};
+export type StreamJSONInputOptions = {
+    extensionProcessor?: ((extension: any) => any);
 };
