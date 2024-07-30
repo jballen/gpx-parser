@@ -88,8 +88,8 @@ export default class GpxParser {
     const lat2 = this.toRadian(wpt2.lat);
 
     var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return earthRadiusKm * c;
   }
 
@@ -174,9 +174,9 @@ export default class GpxParser {
         prevPoint,
         point
       );
-     
+
       altitude[i] = point.ele;
-     
+
       const date1 = new Date(prevPoint.time),
         date2 = new Date(point.time);
       elapsedTime[i] = Math.abs(date2.getTime() - date1.getTime())/1000;
@@ -189,7 +189,7 @@ export default class GpxParser {
         movingTime[i] = 0;
         distanceBelowThreshold[i] = 0;
       }
-     
+
       if (point.extensions) {
         if (options && options.extensionProcessor) {
           extension[i] = options.extensionProcessor(point.extensions);
@@ -218,13 +218,6 @@ export default class GpxParser {
     let geoJson = {
       type: "FeatureCollection",
       features: [] as GeoJsonFeature[],
-      properties: {
-        name: gpxJson.metadata.name,
-        desc: gpxJson.metadata.desc,
-        time: gpxJson.metadata.time,
-        author: gpxJson.metadata.author,
-        link: gpxJson.metadata.link,
-      },
     };
 
     gpxJson.trk.forEach((track, index) => {
@@ -232,7 +225,7 @@ export default class GpxParser {
         type: "Feature",
         geometry: {
           type: "LineString",
-          coordinates: [] as Point[],
+          coordinates: [],
         },
         properties: {
           name: track.name,
@@ -246,12 +239,11 @@ export default class GpxParser {
       };
 
       track.trkseg.trkpt.forEach((pt, index) => {
-        let geoPt: Point = {
-          lon: pt.lon,
-          lat: pt.lat,
-          ele: pt.ele,
-          time: pt.time,
-        };
+        let geoPt = [
+          pt.lon,
+          pt.lat,
+          pt.ele,
+        ];
 
         feature.geometry.coordinates.push(geoPt);
       });
@@ -278,12 +270,11 @@ export default class GpxParser {
       };
 
       route.rtept.forEach((pt) => {
-        let geoPt: Point = {
-          lon: pt.lon,
-          lat: pt.lat,
-          ele: pt.ele,
-          time: pt.time,
-        };
+        let geoPt = [
+          pt.lon,
+          pt.lat,
+          pt.ele,
+        ];
 
         feature.geometry.coordinates.push(geoPt);
       });
@@ -307,11 +298,11 @@ export default class GpxParser {
       };
 
       feature.geometry.coordinates = [
-        {
-          lon: pt.lon,
-          lat: pt.lat,
-          ele: pt.ele,
-        } as Point,
+        [
+          pt.lon,
+          pt.lat,
+          pt.ele,
+        ],
       ];
 
       geoJson.features.push(feature);

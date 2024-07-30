@@ -89,7 +89,7 @@ export type GeoJsonFeature = {
   type: string;
   geometry: {
     type: string;
-    coordinates: Point[];
+    coordinates: number[][];
   };
   properties: {
     name: any;
@@ -106,13 +106,6 @@ export type GeoJsonFeature = {
 export type GeoJson = {
   type: string;
   features: GeoJsonFeature[];
-  properties: {
-    name: any;
-    desc: any;
-    time: any;
-    author: Author;
-    link: any;
-  };
 };
 
 export type GpxJson = {
