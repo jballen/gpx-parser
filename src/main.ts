@@ -14,6 +14,8 @@ import {
 export default class GpxParser {
   constructor() {}
 
+  earthRadiusKm = 6371;
+
   async parse(gpxstring: string): Promise<GpxJson> {
     const parserOptions: xml2js.ParserOptions = {
       tagNameProcessors: [parseNumbers],
@@ -79,8 +81,6 @@ export default class GpxParser {
    * @returns {number} The distance between the two points, returned in kilometers
    */
   calculateDistanceBetweenPoints(wpt1: Point, wpt2: Point): number {
-    const earthRadiusKm = 6371;
-
     const dLat = this.toRadian(wpt2.lat-wpt1.lat);
     const dLon = this.toRadian(wpt2.lon-wpt1.lon);
 
@@ -90,7 +90,7 @@ export default class GpxParser {
     var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
             Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
     var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return earthRadiusKm * c;
+    return this.earthRadiusKm * c;
   }
 
   calculateGradeAdjustedDistanceBetweenPoints(
@@ -309,5 +309,70 @@ export default class GpxParser {
     });
 
     return geoJson;
+  }
+
+  /**
+   * Calculate the haversine distance between two coordinates
+   *
+   * @returns {number} the haversine distance between the coordinates
+   */
+  haversine(wpt1: Point, wpt2: Point): number {
+    const dLat = this.toRadian(wpt2.lat-wpt1.lat);
+    const dLon = this.toRadian(wpt2.lon-wpt1.lon);
+
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(this.toRadian(wpt1.lat)) * Math.cos(this.toRadian(wpt2.lat)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return this.earthRadiusKm * c;
+  }
+
+  // Geodesic formula to calculate distance between two coordinates using Vincenty's method
+  vincenty(wpt1: Point, wpt2: Point): number {
+    // Placeholder for Vincenty formula, as it's more complex and requires ellipsoid constants
+    // Implement a library for precise geodesic calculation or use a package like geodesic
+    return 0; // Replace with actual implementation
+  }
+
+  // Calculate distances using both Haversine and Vincenty methods
+  calculateDistances(points: Point[]): [number[], number[]] {
+    const distancesHaversine: number[] = [];
+    const distancesVincenty: number[] = [];
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const coord1 = points[i];
+        const coord2 = points[i + 1];
+        const distHaversine = this.haversine(coord1, coord2);
+        const distVincenty = this.vincenty(coord1, coord2);
+
+        distancesHaversine.push(distHaversine);
+        distancesVincenty.push(distVincenty);
+    }
+
+    return [distancesHaversine, distancesVincenty];
+  }
+
+  // Determine the shape (line or arc) based on distance differences
+  determineShape(distancesHaversine: number[], distancesVincenty: number[], threshold = 0.01): string {
+    for (let i = 0; i < distancesHaversine.length; i++) {
+        if (Math.abs(distancesHaversine[i] - distancesVincenty[i]) > threshold) {
+            return 'arc';
+        }
+    }
+    return 'line';
+  }
+
+  // Calculate the total distance based on shape
+  calculateTotalDistance(points: Point[]): number {
+    const [distancesHaversine, distancesVincenty] = this.calculateDistances(points);
+    const shape = this.determineShape(distancesHaversine, distancesVincenty);
+
+    let totalDistance = 0;
+    if (shape === 'line') {
+        totalDistance = distancesHaversine.reduce((acc, cur) => acc + cur, 0);
+    } else {
+        totalDistance = distancesVincenty.reduce((acc, cur) => acc + cur, 0);
+    }
+
+    return totalDistance;
   }
 }
